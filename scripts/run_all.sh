@@ -22,7 +22,7 @@ BUFFER_SIZES_KB=(4 64 1024) # en Kilobytes
 SYNC_MODES=("nosync" "sync")
 
 # Rutas y Comandos
-BASE_DIR=$(git rev-parse --show-toplevel)/lab2-io-fs-experiments
+BASE_DIR=$(pwd)
 SRC_DIR="$BASE_DIR"
 BIN_DIR="$SRC_DIR/bin"
 TEST_DATA_DIR="$SRC_DIR/test_data"

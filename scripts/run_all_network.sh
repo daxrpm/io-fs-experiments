@@ -14,7 +14,7 @@
 set -e
 
 # --- Configuración ---
-BASE_DIR=$(git rev-parse --show-toplevel)/lab2-io-fs-experiments
+BASE_DIR=$(pwd)
 BIN_DIR="$BASE_DIR/bin"
 TEST_DATA_DIR="$BASE_DIR/test_data"
 RESULTS_DIR="$BASE_DIR/results/raw"
@@ -59,6 +59,7 @@ run_server_tests() {
                 drop_caches
                 
                 # Ejecutar servidor y capturar logs
+                echo "Iniciando servidor TCP en puerto $TCP_PORT..."
                 ( /usr/bin/time -v strace -c -o "$LOG_DIR/strace_server.log" \
                     "$BIN_DIR/tcp_server" "$TCP_PORT" "$OUTPUT_FILE" "$BSIZE_BYTES" > "$LOG_DIR/app_server.log" ) \
                     2> "$LOG_DIR/time_server.log" &
@@ -67,12 +68,22 @@ run_server_tests() {
                 echo "Servidor iniciado con PID: $SERVER_PID"
                 echo "Esperando conexión del cliente..."
                 
-                # Esperar a que el cliente se conecte y complete la transferencia
+                # Esperar a que el servidor termine (cuando el cliente se desconecte)
                 wait $SERVER_PID
+                SERVER_EXIT_CODE=$?
                 
-                echo "Transferencia completada. Limpiando archivo de salida..."
+                if [ $SERVER_EXIT_CODE -eq 0 ]; then
+                    echo "Transferencia completada exitosamente."
+                else
+                    echo "ERROR: El servidor terminó con código de salida $SERVER_EXIT_CODE"
+                fi
+                
+                echo "Limpiando archivo de salida..."
                 rm -f "$OUTPUT_FILE"
                 echo "---"
+                
+                # Pequeña pausa entre pruebas para evitar problemas de puerto en uso
+                sleep 2
             done
         done
     done
@@ -106,13 +117,23 @@ run_client_tests() {
                 echo "-> Cliente TCP | Archivo: $size_str | Buffer: ${bsize_kb}KB | Rep: $i"
                 drop_caches
                 
+                echo "Conectando al servidor $SERVER_IP:$TCP_PORT..."
                 # Ejecutar cliente
                 ( /usr/bin/time -v strace -c -o "$LOG_DIR/strace_client.log" \
                     "$BIN_DIR/tcp_client" "$SERVER_IP" "$TCP_PORT" "$INPUT_FILE" "$BSIZE_BYTES" > "$LOG_DIR/app_client.log" ) \
                     2> "$LOG_DIR/time_client.log"
+                CLIENT_EXIT_CODE=$?
                 
-                echo "Transferencia completada."
+                if [ $CLIENT_EXIT_CODE -eq 0 ]; then
+                    echo "Transferencia completada exitosamente."
+                else
+                    echo "ERROR: El cliente terminó con código de salida $CLIENT_EXIT_CODE"
+                fi
+                
                 echo "---"
+                
+                # Pequeña pausa entre pruebas
+                sleep 1
             done
         done
     done
