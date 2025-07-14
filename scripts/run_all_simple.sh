@@ -178,7 +178,7 @@ run_network_server() {
                 echo "Servidor iniciado con PID: $SERVER_PID"
                 
                 # Verificar que el proceso se inició
-                sleep 5
+                sleep 3
                 if ! kill -0 $SERVER_PID 2>/dev/null; then
                     echo "ERROR: El servidor no se inició correctamente"
                     cat "$LOG_DIR/app_server.log" 2>/dev/null || echo "No hay logs disponibles"
@@ -186,10 +186,11 @@ run_network_server() {
                 fi
                 
                 echo "Servidor está ejecutándose. Esperando conexión del cliente..."
-                echo "Esperando 30 segundos para que el cliente se conecte..."
+                echo "El servidor está ejecutándose. Puedes ejecutar el cliente ahora."
                 
-                # Esperar a que el servidor termine con timeout
-                timeout 30 wait $SERVER_PID 2>/dev/null || true
+                # Esperar a que el servidor termine (cuando el cliente se desconecte)
+                # Sin timeout para que realmente espere la conexión
+                wait $SERVER_PID 2>/dev/null || true
                 SERVER_EXIT_CODE=$?
                 
                 if [ $SERVER_EXIT_CODE -eq 0 ]; then
@@ -200,7 +201,7 @@ run_network_server() {
                 
                 rm -f "$OUTPUT_FILE"
                 echo "---"
-                sleep 5
+                sleep 3
             done
         done
     done
@@ -234,19 +235,17 @@ run_network_client() {
                 echo "-> Cliente TCP | Archivo: $size_str | Buffer: ${bsize_kb}KB | Rep: $i"
                 drop_caches
                 
-                echo "Esperando 3 segundos para que el servidor esté listo..."
-                sleep 3
+                echo "Esperando 5 segundos para que el servidor esté listo..."
+                sleep 5
                 
                 echo "Conectando al servidor $SERVER_IP:$TCP_PORT..."
                 
                 # Ejecutar cliente con time para medir rendimiento
-                timeout 30 /usr/bin/time -v "$BIN_DIR/tcp_client" "$SERVER_IP" "$TCP_PORT" "$INPUT_FILE" "$BSIZE_BYTES" > "$LOG_DIR/app_client.log" 2> "$LOG_DIR/time_client.log"
+                /usr/bin/time -v "$BIN_DIR/tcp_client" "$SERVER_IP" "$TCP_PORT" "$INPUT_FILE" "$BSIZE_BYTES" > "$LOG_DIR/app_client.log" 2> "$LOG_DIR/time_client.log"
                 CLIENT_EXIT_CODE=$?
                 
                 if [ $CLIENT_EXIT_CODE -eq 0 ]; then
                     echo "Transferencia completada exitosamente."
-                elif [ $CLIENT_EXIT_CODE -eq 124 ]; then
-                    echo "ERROR: Timeout - el cliente tardó demasiado en conectarse"
                 else
                     echo "ERROR: El cliente terminó con código de salida $CLIENT_EXIT_CODE"
                 fi

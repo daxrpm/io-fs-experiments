@@ -72,7 +72,7 @@ run_server_tests() {
                 echo "Servidor iniciado con PID: $SERVER_PID"
                 
                 # Verificar que el proceso se inició y esperar más tiempo
-                sleep 5
+                sleep 3
                 if ! kill -0 $SERVER_PID 2>/dev/null; then
                     echo "ERROR: El servidor no se inició correctamente"
                     echo "Logs del servidor:"
@@ -85,10 +85,10 @@ run_server_tests() {
                 echo "Esperando conexión del cliente..."
                 echo "El servidor está ejecutándose. Puedes ejecutar el cliente ahora."
                 echo "Para verificar que el servidor está vivo: ps aux | grep tcp_server"
-                echo "Esperando 10 segundos para que el cliente se conecte..."
                 
-                # Esperar a que el servidor termine con timeout
-                timeout 30 wait $SERVER_PID 2>/dev/null || true
+                # Esperar a que el servidor termine (cuando el cliente se desconecte)
+                # Sin timeout para que realmente espere la conexión
+                wait $SERVER_PID 2>/dev/null || true
                 SERVER_EXIT_CODE=$?
                 
                 if [ $SERVER_EXIT_CODE -eq 0 ]; then
@@ -104,7 +104,7 @@ run_server_tests() {
                 echo "---"
                 
                 # Pausa entre pruebas
-                sleep 5
+                sleep 3
             done
         done
     done
@@ -138,20 +138,18 @@ run_client_tests() {
                 echo "-> Cliente TCP | Archivo: $size_str | Buffer: ${bsize_kb}KB | Rep: $i"
                 drop_caches
                 
-                echo "Esperando 3 segundos para que el servidor esté listo..."
-                sleep 3
+                echo "Esperando 5 segundos para que el servidor esté listo..."
+                sleep 5
                 
                 echo "Conectando al servidor $SERVER_IP:$TCP_PORT..."
                 echo "Ejecutando: $BIN_DIR/tcp_client $SERVER_IP $TCP_PORT $INPUT_FILE $BSIZE_BYTES"
                 
-                # Ejecutar cliente directamente con timeout
-                timeout 30 "$BIN_DIR/tcp_client" "$SERVER_IP" "$TCP_PORT" "$INPUT_FILE" "$BSIZE_BYTES" > "$LOG_DIR/app_client.log" 2>&1
+                # Ejecutar cliente directamente sin timeout
+                "$BIN_DIR/tcp_client" "$SERVER_IP" "$TCP_PORT" "$INPUT_FILE" "$BSIZE_BYTES" > "$LOG_DIR/app_client.log" 2>&1
                 CLIENT_EXIT_CODE=$?
                 
                 if [ $CLIENT_EXIT_CODE -eq 0 ]; then
                     echo "Transferencia completada exitosamente."
-                elif [ $CLIENT_EXIT_CODE -eq 124 ]; then
-                    echo "ERROR: Timeout - el cliente tardó demasiado en conectarse"
                 else
                     echo "ERROR: El cliente terminó con código de salida $CLIENT_EXIT_CODE"
                     echo "Logs del cliente:"
