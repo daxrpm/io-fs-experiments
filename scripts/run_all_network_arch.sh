@@ -1,14 +1,13 @@
 #!/bin/bash
 
 # ==============================================================================
-# run_all_network.sh: Script para Experimentos TCP/IP entre 2 PCs
+# run_all_network_arch.sh: Script para Experimentos TCP/IP en Arch Linux
 #
-# Este script está diseñado para ejecutar las pruebas de TCP/IP entre
-# dos máquinas separadas. El servidor se ejecuta en PC1 y el cliente en PC2.
+# Versión específica para Arch Linux que maneja mejor los procesos en segundo plano
 #
 # Uso:
-#   En PC1 (servidor): ./run_all_network.sh server
-#   En PC2 (cliente):  ./run_all_network.sh client [IP_DEL_PC1]
+#   En PC1 (servidor): ./run_all_network_arch.sh server
+#   En PC2 (cliente):  ./run_all_network_arch.sh client [IP_DEL_PC1]
 # ==============================================================================
 
 set -e
@@ -39,7 +38,7 @@ drop_caches() {
 }
 
 run_server_tests() {
-    echo "=== EJECUTANDO COMO SERVIDOR ==="
+    echo "=== EJECUTANDO COMO SERVIDOR (ARCH LINUX) ==="
     echo "Esperando conexiones en puerto $TCP_PORT..."
     echo "Asegúrate de que el cliente esté listo para conectarse."
     echo
@@ -60,18 +59,19 @@ run_server_tests() {
                 
                 # Limpiar cualquier proceso anterior que pueda estar usando el puerto
                 pkill -f "tcp_server.*$TCP_PORT" 2>/dev/null || true
-                sleep 1
+                sleep 2
                 
-                # Ejecutar servidor y capturar logs
+                # Ejecutar servidor con nohup para Arch Linux
                 echo "Iniciando servidor TCP en puerto $TCP_PORT..."
-                ( nohup /usr/bin/time -v strace -c -o "$LOG_DIR/strace_server.log" \
-                    "$BIN_DIR/tcp_server" "$TCP_PORT" "$OUTPUT_FILE" "$BSIZE_BYTES" > "$LOG_DIR/app_server.log" ) \
+                nohup /usr/bin/time -v strace -c -o "$LOG_DIR/strace_server.log" \
+                    "$BIN_DIR/tcp_server" "$TCP_PORT" "$OUTPUT_FILE" "$BSIZE_BYTES" > "$LOG_DIR/app_server.log" \
                     2> "$LOG_DIR/time_server.log" &
                 SERVER_PID=$!
                 
                 echo "Servidor iniciado con PID: $SERVER_PID"
                 
                 # Verificar que el proceso realmente se inició
+                sleep 3
                 if ! kill -0 $SERVER_PID 2>/dev/null; then
                     echo "ERROR: El servidor no se inició correctamente"
                     echo "Logs del servidor:"
@@ -79,11 +79,12 @@ run_server_tests() {
                     continue
                 fi
                 
+                echo "Servidor está ejecutándose correctamente"
                 echo "Esperando conexión del cliente..."
                 echo "El servidor está ejecutándose en segundo plano. Puedes ejecutar el cliente ahora."
                 
                 # Esperar a que el servidor termine (cuando el cliente se desconecte)
-                wait $SERVER_PID
+                wait $SERVER_PID 2>/dev/null || true
                 SERVER_EXIT_CODE=$?
                 
                 if [ $SERVER_EXIT_CODE -eq 0 ]; then
@@ -98,7 +99,7 @@ run_server_tests() {
                 rm -f "$OUTPUT_FILE"
                 echo "---"
                 
-                # Pequeña pausa entre pruebas para evitar problemas de puerto en uso
+                # Pausa entre pruebas para evitar problemas de puerto en uso
                 sleep 3
             done
         done
@@ -110,7 +111,7 @@ run_server_tests() {
 run_client_tests() {
     local SERVER_IP=${1:-$DEFAULT_SERVER_IP}
     
-    echo "=== EJECUTANDO COMO CLIENTE ==="
+    echo "=== EJECUTANDO COMO CLIENTE (ARCH LINUX) ==="
     echo "Conectando al servidor en: $SERVER_IP:$TCP_PORT"
     echo
 
@@ -135,8 +136,8 @@ run_client_tests() {
                 
                 echo "Conectando al servidor $SERVER_IP:$TCP_PORT..."
                 # Ejecutar cliente
-                ( /usr/bin/time -v strace -c -o "$LOG_DIR/strace_client.log" \
-                    "$BIN_DIR/tcp_client" "$SERVER_IP" "$TCP_PORT" "$INPUT_FILE" "$BSIZE_BYTES" > "$LOG_DIR/app_client.log" ) \
+                /usr/bin/time -v strace -c -o "$LOG_DIR/strace_client.log" \
+                    "$BIN_DIR/tcp_client" "$SERVER_IP" "$TCP_PORT" "$INPUT_FILE" "$BSIZE_BYTES" > "$LOG_DIR/app_client.log" \
                     2> "$LOG_DIR/time_client.log"
                 CLIENT_EXIT_CODE=$?
                 
@@ -148,7 +149,7 @@ run_client_tests() {
                 
                 echo "---"
                 
-                # Pequeña pausa entre pruebas
+                # Pausa entre pruebas
                 sleep 1
             done
         done
